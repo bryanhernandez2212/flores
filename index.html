@@ -85,6 +85,14 @@
   }
   .envelope-wrap.closing { pointer-events: none; }
 
+  .env-label {
+    font-family: "Cormorant Garamond", serif;
+    font-style: italic;
+    fill: #6b4a12;
+  }
+  .env-label-to { font-size: 17px; font-weight: 600; }
+  .env-label-from { font-size: 14px; opacity: .8; }
+
   .letter-card {
     position: absolute;
     top: 50%;
@@ -214,6 +222,10 @@
               <path d="M0,9 C-13,0 -20,-11 -10,-18 C-3,-23 0,-15 0,-12 C0,-15 3,-23 10,-18 C20,-11 13,0 0,9 Z" fill="#fff6dd" opacity="0.92"/>
             </g>
           </g>
+
+          <!-- destinatario y remitente -->
+          <text x="34" y="182" class="env-label env-label-to">Para: Karen</text>
+          <text x="34" y="202" class="env-label env-label-from">De: Bryan</text>
         </svg>
         <span class="hint">Toca para abrir</span>
       </button>
