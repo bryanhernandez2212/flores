@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Para ti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 20%, #fff8e6 0%, #fdf2d0 45%, #f6e6b8 100%);
+    font-family: "Cormorant Garamond", serif;
+    overflow: hidden;
+  }
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    transition: opacity .6s ease;
+  }
+
+  /* ---------- Carta ---------- */
+
+  #screen-letter.leaving { opacity: 0; }
+  #screen-letter.hidden { display: none; }
+
+  .envelope-wrap {
+    position: relative;
+    width: 340px;
+    height: 340px;
+    max-width: 90vw;
+    perspective: 1300px;
+  }
+  .envelope-wrap.is-open .envelope { opacity: 0; transform: scale(.8) translateY(-18px); pointer-events: none; }
+  .envelope-wrap.is-open .letter-card {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotateX(0deg);
+    pointer-events: auto;
+  }
+
+  .envelope {
+    all: unset;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: opacity .55s ease, transform .55s ease;
+    animation: breathe 3.6s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+  .envelope svg { width: 260px; height: auto; filter: drop-shadow(0 14px 24px rgba(120, 90, 30, 0.28)); overflow: visible; }
+  .envelope .hint {
+    font-family: "Playfair Display", serif;
+    font-style: italic;
+    font-size: 16px;
+    color: #8a6a2a;
+    letter-spacing: .02em;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+  /* la solapa se levanta primero, en cuanto se toca el sobre */
+  .flap {
+    transform-origin: 50% 0%;
+    transition: transform .55s cubic-bezier(.55,0,.1,1), opacity .4s ease .1s;
+  }
+  .envelope-wrap.flap-open .flap {
+    transform: scaleY(.1) translateY(-10px);
+    opacity: 0;
+  }
+  .envelope-wrap.closing { pointer-events: none; }
+
+  .letter-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(.7) rotateX(-20deg);
+    transform-origin: 50% 100%;
+    width: min(460px, 88vw);
+    background: #fffdf6;
+    border: 1px solid #e8d9ab;
+    border-radius: 6px;
+    padding: 40px 38px;
+    box-shadow: 0 20px 45px rgba(120, 90, 30, .18);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .7s ease .25s, transform .7s cubic-bezier(.22,.85,.3,1) .25s;
+    text-align: center;
+  }
+  .letter-text {
+    font-size: 22px;
+    line-height: 1.65;
+    color: #4a3a1e;
+    font-style: italic;
+    margin: 0 0 30px;
+  }
+  .btn {
+    all: unset;
+    display: inline-block;
+    font-family: "Playfair Display", serif;
+    font-style: italic;
+    font-size: 17px;
+    color: #6b4a12;
+    background: #f7e6b0;
+    border: 1px solid #d9b96a;
+    padding: 10px 26px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .25s ease, transform .25s ease;
+  }
+  .btn:hover { background: #f2d98a; transform: translateY(-1px); }
+
+  /* ---------- Campo de flores ---------- */
+
+  #screen-bouquet { opacity: 0; pointer-events: none; padding: 0; }
+  #screen-bouquet.visible { opacity: 1; pointer-events: auto; }
+
+  .field {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .flower-item {
+    all: unset;
+    position: absolute;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .flower-item svg { display: block; overflow: visible; }
+
+  /* 1) recorrido: entra por un lado de la pantalla y cruza hacia el otro */
+  .fall-layer {
+    display: block;
+    opacity: 0;
+    animation: rain var(--dur, 9s) linear forwards;
+  }
+  @keyframes rain {
+    0%   { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--rot-end, 360deg)); }
+  }
+
+  /* 2) reacción al tocar la flor, se suma al movimiento de caída */
+  .poke-layer {
+    display: block;
+    transform-origin: 50% 62%;
+  }
+  .poke-layer.poked {
+    animation: poke .65s cubic-bezier(.33,1,.68,1);
+  }
+  @keyframes poke {
+    0%   { transform: scale(1) rotate(0deg); }
+    25%  { transform: scale(1.28) rotate(-16deg); }
+    50%  { transform: scale(0.9) rotate(13deg); }
+    75%  { transform: scale(1.08) rotate(-6deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- PANTALLA 1: sobre + carta -->
+  <section class="screen" id="screen-letter">
+    <div class="envelope-wrap" id="envelope-wrap">
+      <button class="envelope" id="envelope-btn" aria-label="Abrir la carta">
+        <svg viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="envBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fffaee"/>
+              <stop offset="100%" stop-color="#f6e6bf"/>
+            </linearGradient>
+            <linearGradient id="envFlap" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fdf2d6"/>
+              <stop offset="100%" stop-color="#eed49c"/>
+            </linearGradient>
+            <radialGradient id="envSeal" cx="35%" cy="30%" r="75%">
+              <stop offset="0%" stop-color="#ffe27a"/>
+              <stop offset="60%" stop-color="#f0b83d"/>
+              <stop offset="100%" stop-color="#c9822a"/>
+            </radialGradient>
+          </defs>
+
+          <!-- cuerpo -->
+          <rect x="10" y="58" width="280" height="150" rx="12" fill="url(#envBody)" stroke="#d8b672" stroke-width="2"/>
+          <!-- pliegues internos del bolsillo -->
+          <path d="M10,66 L150,168 L290,66" fill="none" stroke="#e2c483" stroke-width="1.5" opacity="0.7"/>
+          <path d="M10,200 L110,150" fill="none" stroke="#dcb877" stroke-width="1.5" opacity="0.5"/>
+          <path d="M290,200 L190,150" fill="none" stroke="#dcb877" stroke-width="1.5" opacity="0.5"/>
+
+          <!-- solapa (se anima al abrir) -->
+          <g class="flap">
+            <path d="M10,58 L150,152 L290,58 L290,68 L150,164 L10,68 Z" fill="url(#envFlap)" stroke="#d8b672" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M150,152 L150,164" stroke="#c9a565" stroke-width="1" opacity="0.5"/>
+            <g transform="translate(150,112)">
+              <circle r="19" fill="url(#envSeal)" stroke="#a8721f" stroke-width="1"/>
+              <path d="M0,9 C-13,0 -20,-11 -10,-18 C-3,-23 0,-15 0,-12 C0,-15 3,-23 10,-18 C20,-11 13,0 0,9 Z" fill="#fff6dd" opacity="0.92"/>
+            </g>
+          </g>
+        </svg>
+        <span class="hint">Toca para abrir</span>
+      </button>
+
+      <div class="letter-card" id="letter-card">
+        <p class="letter-text">
+          Quizá no te tenga cerca,<br>
+          pero estás en mi corazón.<br>
+          Espero que la distancia no sea una limitación,<br>
+          y solo espero el día en que yo te pueda ver.
+        </p>
+        <button class="btn" id="to-bouquet-btn">Toca para ver las flores</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PANTALLA 2: campo de flores -->
+  <section class="screen" id="screen-bouquet">
+    <div class="field" id="flower-field" aria-label="Flores amarillas, toca cualquiera para verla moverse"></div>
+  </section>
+
+  <!-- Depósito compartido de formas: no se muestra, solo se referencia con <use> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <radialGradient id="petalGrad" cx="50%" cy="88%" r="80%">
+        <stop offset="0%" stop-color="#fff3b0"/>
+        <stop offset="55%" stop-color="#ffd400"/>
+        <stop offset="100%" stop-color="#f2a900"/>
+      </radialGradient>
+      <radialGradient id="petalGradLight" cx="50%" cy="88%" r="80%">
+        <stop offset="0%" stop-color="#fffbe6"/>
+        <stop offset="60%" stop-color="#ffe680"/>
+        <stop offset="100%" stop-color="#ffcf3d"/>
+      </radialGradient>
+      <radialGradient id="centerGrad" cx="35%" cy="32%" r="75%">
+        <stop offset="0%" stop-color="#c98b3a"/>
+        <stop offset="55%" stop-color="#8a5a20"/>
+        <stop offset="100%" stop-color="#552f0f"/>
+      </radialGradient>
+      <radialGradient id="centerGradWarm" cx="35%" cy="32%" r="75%">
+        <stop offset="0%" stop-color="#d99a3a"/>
+        <stop offset="55%" stop-color="#a05a12"/>
+        <stop offset="100%" stop-color="#6b3a0a"/>
+      </radialGradient>
+      <linearGradient id="stemGrad" x1="0" y1="0" x2="1" y2="0.15">
+        <stop offset="0%" stop-color="#2f6b16"/>
+        <stop offset="100%" stop-color="#5aa832"/>
+      </linearGradient>
+      <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#5aa832"/>
+        <stop offset="100%" stop-color="#396f1c"/>
+      </linearGradient>
+
+      <path id="petalShape" d="M0,0 C-13,-9 -16,-33 -4,-49 C-2,-52 2,-52 4,-49 C16,-33 13,-9 0,0 Z"/>
+      <path id="leafShape" d="M0,0 Q-9,-5 -24,0 Q-9,10 0,0 Z"/>
+
+      <g id="petalsOuter">
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(0)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(45)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(90)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(135)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(180)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(225)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(270)"/>
+        <use href="#petalShape" fill="url(#petalGrad)" transform="rotate(315)"/>
+      </g>
+      <g id="petalsInner">
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(22) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(67) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(112) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(157) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(202) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(247) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(292) scale(0.7)"/>
+        <use href="#petalShape" fill="url(#petalGradLight)" transform="rotate(337) scale(0.7)"/>
+      </g>
+      <g id="center2">
+        <circle cx="0" cy="0" r="15" fill="url(#centerGrad)"/>
+        <circle cx="0" cy="0" r="15" fill="none" stroke="#fff3c8" stroke-width="1" opacity="0.25"/>
+        <circle cx="-4" cy="-6" r="1.7" fill="#3d230c"/>
+        <circle cx="4" cy="-7" r="1.4" fill="#3d230c"/>
+        <circle cx="-6" cy="2" r="1.5" fill="#3d230c"/>
+        <circle cx="6" cy="3" r="1.3" fill="#3d230c"/>
+        <circle cx="0" cy="7" r="1.5" fill="#3d230c"/>
+        <circle cx="-2" cy="-1" r="1.2" fill="#3d230c"/>
+        <circle cx="3" cy="0" r="1.1" fill="#3d230c"/>
+      </g>
+
+      <!-- Tipo 1: margarita -->
+      <g id="flower-daisy">
+        <path d="M0,0 Q6,-50 0,-95" stroke="url(#stemGrad)" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <use href="#leafShape" fill="url(#leafGrad)" transform="translate(14,-55) rotate(20)"/>
+        <g transform="translate(0,-110)">
+          <use href="#petalsOuter"/>
+          <use href="#petalsInner"/>
+          <use href="#center2"/>
+        </g>
+      </g>
+
+      <!-- Tipo 2: botón de cinco pétalos -->
+      <g id="flower-five">
+        <path d="M0,0 L0,-90" stroke="url(#stemGrad)" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <use href="#leafShape" fill="url(#leafGrad)" transform="translate(-12,-48) rotate(-24) scale(-1,1)"/>
+        <g transform="translate(0,-105)">
+          <g fill="url(#petalGrad)">
+            <ellipse cx="0" cy="-27" rx="17" ry="27" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-27" rx="17" ry="27" transform="rotate(72)"/>
+            <ellipse cx="0" cy="-27" rx="17" ry="27" transform="rotate(144)"/>
+            <ellipse cx="0" cy="-27" rx="17" ry="27" transform="rotate(216)"/>
+            <ellipse cx="0" cy="-27" rx="17" ry="27" transform="rotate(288)"/>
+          </g>
+          <circle r="13" fill="url(#centerGrad)"/>
+        </g>
+      </g>
+
+      <!-- Tipo 3: flor estrella -->
+      <g id="flower-star">
+        <path d="M0,0 Q-5,-48 0,-88" stroke="url(#stemGrad)" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <g transform="translate(0,-105)">
+          <g fill="#ffb300">
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(0)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(45)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(90)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(135)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(180)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(225)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(270)"/>
+            <path d="M0,-8 L9,-32 L0,-54 L-9,-32 Z" transform="rotate(315)"/>
+          </g>
+          <circle r="10" fill="url(#centerGradWarm)"/>
+        </g>
+      </g>
+
+      <!-- Tipo 4: tulipán -->
+      <g id="flower-tulip">
+        <path d="M0,0 Q4,-45 0,-80" stroke="url(#stemGrad)" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <use href="#leafShape" fill="url(#leafGrad)" transform="translate(10,-40) rotate(24)"/>
+        <g transform="translate(0,-100)">
+          <path d="M-24,8 C-30,-18 -22,-42 -10,-50 C-2,-30 -4,-8 -24,8 Z" fill="#ffcf3d"/>
+          <path d="M24,8 C30,-18 22,-42 10,-50 C2,-30 4,-8 24,8 Z" fill="#ffcf3d"/>
+          <path d="M-20,10 C-26,-25 -18,-55 0,-65 C18,-55 26,-25 20,10 C10,-2 -10,-2 -20,10 Z" fill="#ffe27a"/>
+        </g>
+      </g>
+    </defs>
+  </svg>
+
+<script>
+  const envelopeBtn = document.getElementById('envelope-btn');
+  const envelopeWrap = document.getElementById('envelope-wrap');
+  const toBouquetBtn = document.getElementById('to-bouquet-btn');
+  const screenLetter = document.getElementById('screen-letter');
+  const screenBouquet = document.getElementById('screen-bouquet');
+  const flowerField = document.getElementById('flower-field');
+
+  envelopeBtn.addEventListener('click', () => {
+    envelopeWrap.classList.add('flap-open');
+    setTimeout(() => envelopeWrap.classList.add('is-open'), 480);
+  });
+
+  toBouquetBtn.addEventListener('click', () => {
+    // cierra la carta de vuelta al sobre antes de pasar a las flores
+    envelopeWrap.classList.add('closing');
+    envelopeWrap.classList.remove('is-open');
+    setTimeout(() => {
+      envelopeWrap.classList.remove('flap-open');
+      setTimeout(() => {
+        screenLetter.classList.add('leaving');
+        setTimeout(() => {
+          screenLetter.classList.add('hidden');
+          screenBouquet.classList.add('visible');
+          startRain();
+        }, 550);
+      }, 600);
+    }, 700);
+  });
+
+  const TYPES = ['daisy', 'five', 'star', 'tulip'];
+  const MAX_ON_SCREEN = 46;
+  let rainTimer = null;
+
+  function spawnFlower() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const edge = Math.random();
+    let top, left, dx, dy;
+
+    if (edge < 0.55) {
+      // entra por arriba, cae hacia abajo
+      top = '-14%';
+      left = (Math.random() * 100).toFixed(1) + '%';
+      dx = Math.round(Math.random() * 200 - 100) + 'px';
+      dy = Math.round(h * 1.3) + 'px';
+    } else if (edge < 0.74) {
+      // entra por la izquierda, cruza a la derecha
+      top = (Math.random() * 100).toFixed(1) + '%';
+      left = '-14%';
+      dx = Math.round(w * 1.3) + 'px';
+      dy = Math.round(Math.random() * 220 - 60) + 'px';
+    } else if (edge < 0.93) {
+      // entra por la derecha, cruza a la izquierda
+      top = (Math.random() * 100).toFixed(1) + '%';
+      left = '114%';
+      dx = -Math.round(w * 1.3) + 'px';
+      dy = Math.round(Math.random() * 220 - 60) + 'px';
+    } else {
+      // entra por abajo, sube flotando
+      top = '114%';
+      left = (Math.random() * 100).toFixed(1) + '%';
+      dx = Math.round(Math.random() * 200 - 100) + 'px';
+      dy = -Math.round(h * 1.3) + 'px';
+    }
+
+    const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+    const size = 34 + Math.random() * 74;
+    const dur = 7 + Math.random() * 6;
+    const rotStart = Math.round(Math.random() * 360);
+    const rotEnd = rotStart + (Math.random() < 0.5 ? 1 : -1) * Math.round(180 + Math.random() * 360);
+
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'flower-item';
+    el.setAttribute('aria-label', 'Flor amarilla');
+    el.style.top = top;
+    el.style.left = left;
+    el.style.setProperty('--dx', dx);
+    el.style.setProperty('--dy', dy);
+    el.style.setProperty('--dur', dur.toFixed(2) + 's');
+    el.style.setProperty('--rot-end', rotEnd + 'deg');
+    el.innerHTML =
+      '<span class="fall-layer"><span class="poke-layer">' +
+      '<svg viewBox="-80 -180 160 190" width="' + Math.round(size) + '" height="' + Math.round(size * 1.19) + '">' +
+      '<use href="#flower-' + type + '" transform="rotate(' + rotStart + ')"/>' +
+      '</svg></span></span>';
+
+    const fallLayer = el.querySelector('.fall-layer');
+    fallLayer.addEventListener('animationend', () => el.remove());
+
+    el.addEventListener('pointerdown', () => {
+      const poke = el.querySelector('.poke-layer');
+      poke.classList.remove('poked');
+      void poke.offsetWidth;
+      poke.classList.add('poked');
+    });
+
+    flowerField.appendChild(el);
+  }
+
+  function startRain() {
+    if (rainTimer) return;
+    for (let i = 0; i < 14; i++) setTimeout(spawnFlower, i * 90);
+    rainTimer = setInterval(() => {
+      if (flowerField.childElementCount < MAX_ON_SCREEN) spawnFlower();
+    }, 240);
+  }
+</script>
+</body>
+</html>
